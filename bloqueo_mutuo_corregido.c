@@ -20,11 +20,26 @@ int main(int argc, char **argv)
         destino, origen,                 /* rango en comunicador de destino          */
                                          /* y tareas origen                          */
         etiqueta_envio, etiqueta_recibo, /* etiquetas de mensaje                     */
+        size,                            /* numero de procesos                       */
         i;
-    MPI_Status estado; /* estado de comunicacion                   */
+    MPI_Status estado;   /* estado de comunicacion                   */
+    MPI_Request reqs[2]; /* para guardar los request (send y recv)   */
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rango);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    // Asegurarse que solo 2 procesos intervengan
+    if (size != 2)
+    {
+        if (rango == 0)
+        {
+            printf("Este programa requiere exactamente 2 procesos.\n");
+        }
+        MPI_Finalize();
+        return 0;
+    }
+
     printf(" Tarea %d inicializada\n", rango);
 
     /* inicializar buffers de mensaje */
@@ -77,6 +92,15 @@ int main(int argc, char **argv)
         MPI_Send(mensaje1, LONGITUD_MENSAJE, MPI_FLOAT,
                  destino, etiqueta_envio, MPI_COMM_WORLD);
     }
+    /* ---------------------------------------------------------------
+     * Uso de comunicación no bloqueante
+     * --------------------------------------------------------------- */
+    printf("\n Uso de comounicacion no bloqueante en proceso %d\n", rango);
+    printf(" 2do metodo: Tarea %d ha enviado el mensaje\n", rango);
+    MPI_Isend(mensaje1, LONGITUD_MENSAJE, MPI_FLOAT, destino, etiqueta_envio, MPI_COMM_WORLD, &reqs[0]);
+    MPI_Irecv(mensaje2, LONGITUD_MENSAJE, MPI_FLOAT, origen, etiqueta_recibo, MPI_COMM_WORLD, &reqs[1]);
+    MPI_Waitall(2, reqs, MPI_STATUSES_IGNORE);
+    printf(" 2do metodo: Tarea %d ha recibido el mensaje\n", rango);
 
     MPI_Finalize();
     return 0;
